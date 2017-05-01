@@ -39,8 +39,8 @@ enum class PC_CTRL{
   OFF
 };
 
-enum class receiver{
-  PC_CTRL = START,
+enum class FS{
+  OFF = START,
   RS,     //radio socket
   TV,
   RGB
