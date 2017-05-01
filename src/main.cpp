@@ -53,9 +53,7 @@ RF24 radio(PIN_CE, PIN_CS);
 /* -- protocoll requirements -- *\
   -small payload equals better range
 
-
 \* --                        -- */
-
 
 void setup(){
   Serial.begin(9600);
@@ -69,14 +67,10 @@ void setup(){
   // low data rate for better range
   radio.setDataRate(RF24_250KBPS);
 
-  radio.openReadingPipe(1, "PC_Node")
-
-
+  //radio.openReadingPipe(1, "PC_Node")
 
   // set pipes for communication;
   //  avoid pipe 0 http://maniacalbits.blogspot.de/2013/04/rf24-avoiding-rx-pipe-0-for-enhanced.html
-
-
 
   radio.startListening();
   Serial.println(F("Ready for commands!"));
