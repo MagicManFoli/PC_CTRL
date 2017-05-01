@@ -62,14 +62,17 @@ void setup(){
   //low power because of small power supply and close proximity
   radio.setPALevel(RF24_PA_LOW);
 
-  //## data rate??
+  // low data rate for better range
   radio.setDataRate(RF24_250KBPS);
+
+  // small payload equals better range
+
 
 
   // set pipes for communication;
   //  avoid pipe 0 http://maniacalbits.blogspot.de/2013/04/rf24-avoiding-rx-pipe-0-for-enhanced.html
 
-
+  // test roeske 17:28
 
 }
 
