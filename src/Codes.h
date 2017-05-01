@@ -7,7 +7,7 @@ send (receiver, device, function, parameter)
 
 ## pretty much a copy of IP?
 
-Receiver  | Device  | Funktion  | Parameter
+Node  | Category  | Funktion  | Parameter
 0 - 7     | 8 - 15  | 16 - 23   | 24 - 31
 
  * optional *
@@ -19,6 +19,13 @@ Receiver  | Device  | Funktion  | Parameter
 
 enum class to use namespace, prevents duplicates
 */
+
+/* -- examples --
+- BROADCAST | GENERIC | get_alive | ?
+- PC_Node | PC_CTRL | SET | ON
+-
+
+--------------*/
 
 // start codes on printable chars to increase readability and enable manual insertion
 #define START 65
