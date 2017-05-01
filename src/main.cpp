@@ -48,12 +48,10 @@ IRQ -> ??
 // SPI +
 RF24 radio(PIN_CE, PIN_CS);
 
-//bool role = 0;    //send = 1, receive = 0
+bool role = 0;    //send = 1, receive = 0
 
-/* -- protocoll requirements -- *\
-  -small payload equals better range
 
-\* --                        -- */
+
 
 void setup(){
   Serial.begin(9600);
@@ -67,13 +65,16 @@ void setup(){
   // low data rate for better range
   radio.setDataRate(RF24_250KBPS);
 
-  //radio.openReadingPipe(1, "PC_Node")
+  // small payload equals better range
+
+
 
   // set pipes for communication;
   //  avoid pipe 0 http://maniacalbits.blogspot.de/2013/04/rf24-avoiding-rx-pipe-0-for-enhanced.html
 
-  radio.startListening();
-  Serial.println(F("Ready for commands!"));
+  // test roeske 17:31
+
+  //parallel test 17:41
 
 }
 
