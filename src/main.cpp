@@ -72,7 +72,7 @@ void setup(){
   // set pipes for communication;
   //  avoid pipe 0 http://maniacalbits.blogspot.de/2013/04/rf24-avoiding-rx-pipe-0-for-enhanced.html
 
-  // test roeske 17:28
+  // test roeske 17:30
 
 }
 
