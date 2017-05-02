@@ -32,8 +32,9 @@ Node  | Category  | Funktion  | Parameter
 #define START 65
 
 // structured block to group cmd's together
-struct cmd {
-  uint8_t node;
+struct cmd {    //const?
+  uint16_t from_node;    //added for answer (apart from ACK)
+  //uint8_t to_node;    //already needed for transmission
   uint8_t category;
   uint8_t function;
   uint8_t parameter;

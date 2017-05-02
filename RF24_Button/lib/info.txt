@@ -1,0 +1,8 @@
+
+All Libraries are relocated to personal global library list.
+-> global updated library list, update via "PlatformIO > Update [..] libraries"
+
+->> C:\SPB_Data\.platformio\lib
+
+http://tmrh20.github.io/RF24/
+http://tmrh20.github.io/RF24Network/
