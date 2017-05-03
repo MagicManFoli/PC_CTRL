@@ -24,6 +24,7 @@ const uint8_t PIN_CE = 7;
 const uint8_t PIN_CS = 8;
 /* SETUP
 NRF --> Arduino
+---------------
 GND -> GND
 VCC -> 3.3V (+ >10uF | 47uF)
 CE -> 7
@@ -94,7 +95,7 @@ void setup(){
   Serial.println(F("RF_Test starting..."));
 
   SPI.begin();    //start for radio ##needed?
-  
+
   if (!radio.begin()){    //failed init, continued use will do weird stuff to network code
     Serial.println(F("No response from module"));
     delay(1000);  // wait for... stuff...
@@ -124,7 +125,7 @@ void loop(){
 
   now = millis();
 
-  if ( now - last_blink >= 200){
+  if ( now - last_blink >= 1000){
     last_blink = now;
     Serial.println(F("Toggle"));
     toggle = !toggle;
