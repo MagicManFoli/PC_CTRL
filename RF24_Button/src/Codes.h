@@ -31,6 +31,8 @@ Node  | Category  | Funktion  | Parameter
 // start codes on printable chars to increase readability and enable manual insertion
 #define START 65
 
+// current payload: 40 Bit, 5 Bytes
+
 // structured block to group cmd's together
 struct cmd {    //const?
   uint16_t from_node;    //added for answer (apart from ACK)
