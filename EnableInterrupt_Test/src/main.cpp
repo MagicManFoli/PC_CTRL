@@ -16,6 +16,8 @@ volatile bool changed = false;
 volatile bool toggle = false;
 volatile uint32_t last;
 
+volatile uint8_t PORTD_HIST = 0xFF;
+
 void enable_interrupts(){
 
   // pin change interrupt (example for D4)
@@ -31,15 +33,35 @@ void enable_interrupts(){
 }
 
 //any pin change detected, possible start of bouncing
-ISR (PCINT2_vect){
-  // ## check for type/pin
+ISR (PCINT2_vect){  //PORTD
+
+  // - decode pin that changed
+  uint8_t changedbits;
+
+  changedbits = PIND ^ PORTD_HIST;
+  PORTD_HIST = PIND;    //update changed pins
+
+  // - check if still bouncing
+
   // u16 = & 0FFF possible, top word irrelevant for small timing
-  uint32_t now = millis();    //won't increment in function
-  if (((now - last) > t_deb) && (digitalRead(PIN_BT_1) == false)){  //ignore degitalRead?
-    changed = true;   //only for loop to check for changes
-    toggle = !toggle;
+  uint32_t now = millis();    //won't increment in function, current should be enough
+  if ((now - last) < t_deb){  //quick changes, still bouncing
+    last = now;
+    return;
   }
-  last = now;
+  //last = now;
+
+  // - should be stable now, can start analysis
+
+  if (changedbits & (1 << PIND5)){  //first button
+    if (digitalRead(PIN_BT_1) == false){
+      changed = true;
+      toggle = !toggle;
+    }
+  }
+  if (changedbits & (1 << PIND6)){
+    // second button
+  }
 }
 
 
