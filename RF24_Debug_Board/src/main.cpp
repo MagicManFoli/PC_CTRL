@@ -2,11 +2,11 @@
 #include <Arduino.h>
 
 #include <avr/interrupt.h>
+#include <avr/power.h>
 #include <avr/sleep.h>
+#include <avr/io.h>
 
 #include "Codes.h"
-
-#include <EnableInterrupt.h>
 
 //LowPower.h     //.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
 
@@ -99,60 +99,122 @@ RF24 radio(PIN_CE, PIN_CS);
 
 RF24Network network(radio);
 
-const uint16_t this_node = CMD::TESTER;    //OCTAL
-const uint16_t other_node = CMD::PC_NODE;   //
+const uint16_t this_node = CMD::TESTER;    // 01 OCTAL
+const uint16_t other_node = CMD::PC_NODE;   // 02
 
 // struct cmd   //forward declaration?
+
+volatile cmd_payload payload{(uint16_t) -1,(uint16_t) -1, 0, 0, 0};
+//volatile RF24NetworkHeader header;
 
 /* -----------  Functions ------------------- */
 
 volatile bool toggle = 0;    //volatile because of interrupt modification
-const uint16_t t_deb = 40; //ms
+volatile bool changed = 0;    //not needed if payload is modified
 
-volatile cmd_payload payload;
-volatile RF24NetworkHeader header;
-
+const uint16_t t_deb = 50; //ms
+volatile uint32_t last;
+volatile uint8_t PORTD_HIST = 0xFF;
+/*
 // ## toggle on interrupt by PIN_BT_1
-void ISR(PCINT2_vect){    //toggle
+ISR(PCINT2_vect){    //toggle
   //##debounce
 
   if (PIND & (1 << 5)){
     Serial.println(F("ISR_toggle"));
     toggle = !toggle;
     digitalWrite(PIN_LED_1, toggle);
-
-  }else if (PIND & (1 << 6)){
-
+  }
+  else if (PIND & (1 << 6)){
     Serial.println(F("Sending"));
     // set payload != 0 to signal loop()
     header = header(other_node);   //generate header for transmission
     payload = {this_node, CMD::GENERIC, CMD::SET_LED, toggle};  //switch other led depending on own status
-
   }
-
 }
-
+*/
 
 void enable_interrupts(){
-
+  cli();
   // pin change interrupt (example for D4)
   PCMSK2 |= bit (PCINT21);  // want pin 5
   PCMSK2 |= bit (PCINT22);  // want pin 6
   PCIFR  |= bit (PCIF2);    // clear any outstanding interrupts
   PCICR  |= bit (PCIE2);    // enable pin change interrupts for D0 to D7
 
-  pinMode(PIN_BT_1, INPUT_PULLUP);    //pullup or external pulldown
-  pinMode(PIN_BT_2, INPUT_PULLUP);
-
-  // enable interrupts?
+  sei();
 }
 
+ISR (PCINT2_vect){  //PORTD
+  uint8_t changedbits;
+
+  changedbits = PIND ^ PORTD_HIST;    //pins that are different
+  PORTD_HIST = PIND;    //update changed pins
+
+  uint32_t now = millis();    //won't increment in function but current is ok
+  if ((now - last) < t_deb){  //quick changes, still bouncing
+    last = now;
+    return;
+  }
+
+  if (changedbits & (1 << PIND5)){  //pin is changed pin
+    if (digitalRead(PIN_BT_1) == false){
+      changed = true;
+      toggle = !toggle;
+      digitalWrite(PIN_LED_1, toggle);
+    }
+  }
+  if (changedbits & (1 << PIND6)){
+    if (digitalRead(PIN_BT_2) == false){
+      payload = (cmd_payload){this_node, other_node, CMD::GENERIC, CMD::SET_LED, toggle};  //switch other led depending on own status
+    }
+  }
+}
+
+void sleep(){
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // stand by possible for fast responses
+
+  // ...
+
+  sleep_enable();
+  sleep_bod_disable();
+  //## turn off ADC ...
+  //sei();
+  sleep_mode();   //goes to sleep here
+
+  sleep_disable();    //wakes up here
+}
+
+void print_payload(volatile cmd_payload &pl){ //it works, dont ask
+    Serial.println(F("-- Payload is: --"));
+    Serial.print(F("\n From Node: "));
+    Serial.print(pl.from_node);
+    Serial.print(F("\n To Node: "));
+    Serial.print(pl.to_node);
+    Serial.print(F("\n category: "));
+    Serial.print(pl.category);
+    Serial.print(F("\n function: "));
+    Serial.print(pl.function);
+    Serial.print(F("\n parameter: "));
+    Serial.print(pl.parameter);
+    Serial.println(F("\n-----------------"));
+}
 
 void setup(){
   noInterrupts();
 
+  // pullup unused pins (consumes less power)
+  for (byte i=0; i<20; i++) {    //make all pins inputs with pullups enabled
+      pinMode(i, INPUT_PULLUP);
+  }
+
   Serial.begin(9600);
   Serial.println(F("RF_Debug_Board starting..."));
+
+  pinMode(PIN_BT_1, INPUT_PULLUP);    // switch pulls down
+  pinMode(PIN_BT_2, INPUT_PULLUP);
+  pinMode(PIN_LED_1, OUTPUT);
+  pinMode(PIN_LED_2, OUTPUT);
 
   SPI.begin();    //start for radio ##needed?
 
@@ -164,20 +226,9 @@ void setup(){
     sleep_mode();
   }
 
-  //modify radio if possible
+  //## modify radio if possible
 
   network.begin(90, this_node);   // no idea where the 90 is from
-
-
-  pinMode(PIN_LED_1, OUTPUT);
-  pinMode(PIN_LED_2, OUTPUT);
-
-  // -- define interrupt --
-
-/*  only works for D2 and D3, every other manually
-  attachInterrupt(digitalPinToInterrupt(PIN_BT_1), ISR_toggle, RISING); //## wont work
-  attachInterrupt(digitalPinToInterrupt(PIN_BT_2), ISR_send, RISING);
-*/
 
   enable_interrupts();
 
@@ -187,21 +238,25 @@ void setup(){
 }
 
 
-bool success;
-
 void loop(){
   network.update();   //call often to enable network features
 
-  if (cmd_payload != 0) {   //interrupt routine modified
-    success = network.write(header, &payload, sizeof(payload));
+  if (payload.to_node != (uint16_t)-1) {   //interrupt routine modified; easier than 2^16 - 1
+    Serial.println(F("Payload was modified, transmitting again"));
+    print_payload(payload);
+
+    RF24NetworkHeader header(payload.to_node);
+    bool success = network.write(header, &payload, sizeof(payload));
+
     if (success == true) Serial.println("Transmission was successful");
     else Serial.println("Transmission failed");
 
     //reset variables
 
-    header = 0;
-    payload = {0, 0, 0, 0};
+    payload.to_node = (uint16_t)-1; //payload is invalid again; easier than 2^16 - 1
 
+    Serial.println(F("Payload was reset"));
+    print_payload(payload);
   }
   // transmit (BROADCAST, GENERIC, BLINK, 3)
 }

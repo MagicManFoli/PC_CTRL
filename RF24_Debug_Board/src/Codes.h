@@ -36,7 +36,7 @@ Node  | Category  | Funktion  | Parameter
 // structured block to group cmd's together
 struct cmd_payload {    //## const?,  include into CMD?
   uint16_t from_node;    //added for answer (apart from ACK), octal format
-  //uint8_t to_node;    //already defined in header for transmission
+  uint16_t to_node;    //already defined in header for transmission but redefine here ## volatile problem
   uint8_t category;
   uint8_t function;
   uint8_t parameter;
