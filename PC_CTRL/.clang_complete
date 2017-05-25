@@ -1,6 +1,17 @@
 -IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\packages\framework-arduinoavr\cores\arduino
 -IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\packages\framework-arduinoavr\variants\standard
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\packages\framework-arduinoavr\libraries\__cores__\arduino\SPI\src
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24\utility
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24Network
 -IC:\Users\Johannes\Documents\Platform_IO\Shared\PC_CTRL\src
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24\utility
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\packages\framework-arduinoavr\libraries\__cores__\arduino\SPI\src
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24\utility
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24Network
+-IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\packages\framework-arduinoavr\libraries\__cores__\arduino\SPI\src
 -IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24
 -IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24\utility
 -IC:\Users\Johannes\AppData\Roaming\SPB_16.6\.platformio\lib\RF24Network
