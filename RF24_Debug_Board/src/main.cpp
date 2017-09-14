@@ -220,9 +220,10 @@ void setup(){
 
   if (!radio.begin()){    //failed init, continued use will do weird stuff to network code
     Serial.println(F("No response from module"));
-    delay(1000);  // wait for... stuff...
+    //delay(1000);  // wait for... stuff...
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     cli();  //disable interrupts
+    Serial.flush();
     sleep_mode();
   }
 
