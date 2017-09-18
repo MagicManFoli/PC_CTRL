@@ -5,6 +5,8 @@
 -IC:\SPB_Data\.platformio\lib\RF24_ID433
 -IC:\SPB_Data\.platformio\lib\RF24_ID433\utility
 -IC:\SPB_Data\.platformio\lib\RF24Network_ID435
+-IE:\Kreativ\Programme\Git\PC_CTRL\PC_CTRL\lib\HomeNet
+-IE:\Kreativ\Programme\Git\PC_CTRL\PC_CTRL\lib\HomeNet
 -IC:\SPB_Data\.platformio\lib\ESP_To_IFTTT
 -IC:\SPB_Data\.platformio\lib\EnableInterrupt
 -IC:\SPB_Data\.platformio\lib\EnableInterrupt\utility

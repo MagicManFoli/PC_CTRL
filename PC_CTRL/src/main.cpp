@@ -4,32 +4,14 @@
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 
-#include "Codes.h"
+#include "HomeNet.h"
+
 // http://tmrh20.github.io/RF24/
-
-
 #include <RF24Network.h>
 #include <RF24.h>
 #include <SPI.h>
 
-
-/* -- edit in config-h --
-//payload-size in byte
-#define MAX_PAYLOAD_SIZE 16
-#define DISABLE_FRAGMENTATION
-#define RF24NetworkMulticast
-#define ENABLE_SLEEP_MODE
-*/
-
-// Setup for RF24 Codes
-const uint8_t PIN_CE = 7;
-const uint8_t PIN_CS = 8;
-
-// blink when transmission was received
-const uint8_t PIN_LED = A3;
-
-// test battery/start PC (?)
-const uint8_t PIN_MANUAL = 3;
+// -------- globals & startup -------------------
 
 /* SETUP
 NRF --> Arduino
@@ -44,39 +26,97 @@ MISO -> 12
 IRQ -> ??
 */
 
-/* -- Network --
+// Setup for RF24 Codes
+const uint8_t PIN_CE = 7;
+const uint8_t PIN_CS = 8;
 
-  Each Node can only connect to 6 other Nodes, tree structure needed
-  -> 6 children for root, after that 1 parent and 5 children
+// test battery/start PC (?)
+const uint8_t PIN_BT = 3;
 
-  https://tmrh20.github.io/RF24Network/helloworld_tx_8ino-example.html
-  https://tmrh20.github.io/RF24Network/helloworld_rx_8ino-example.html
+// blink when transmission was received
+const uint8_t PIN_LED = A4;
+const uint8_t PIN_PC = A5;
 
-  In RF24Network, the master is just 00
-  Children of master are 01,02,03,04,05
-  Children of 01 are 011,021,031,041,051
-
-  multicastLevel
-  setup_watchdog  -> max 8s
-  sleepNode
-  is_valid_address
-  multicastRelay  -> enable forwarding
-  available
-  read/peek
-
-*/
 
 // SPI +
 RF24 radio(PIN_CE, PIN_CS);
 RF24Network network(radio);
 
-const uint16_t this_node = 01;    //first child, this node
-const uint16_t main_node = 00;    //master Node
-const uint16_t other_node = 02;   //second child, other Node
+const uint16_t this_node = static_cast<uint16_t>(HomeNet::NODE::PC_NODE);    //first child, this node
+const uint16_t main_node = static_cast<uint16_t>(HomeNet::NODE::TESTER);    //master Node
+
+//volatile cmd_payload payload{(uint16_t) -1,(uint16_t) -1, 0, 0, 0};
+
+
+// ---------------- functions --------------
+
+void translate(HomeNet::payload load){
+  if (load.category == static_cast<uint8_t>(HomeNet::CATEGORY::GENERIC)){
+    if (load.function == static_cast<uint8_t>(HomeNet::GENERIC::SET_LED)){
+      Serial.println(F("Writing new LED status"));
+      digitalWrite(PIN_LED, (bool)load.parameter);
+      return;
+    }
+  }
+
+  if (load.category == static_cast<uint8_t>(HomeNet::CATEGORY::PC_CTRL)){
+    if (load.function == static_cast<uint8_t>(HomeNet::PC_CTRL::SET)){
+      Serial.println(F("Writing new CTRL status"));
+      digitalWrite(PIN_PC, (bool)load.parameter);
+      return;
+    }
+  }
+}
+
+// ISR to wake up from NRF
+// ...
+
+void sleep(){
+  // Serial -> going to sleep
+
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // stand by possible for fast responses
+
+  sleep_enable();         // allow power-down
+  sleep_bod_disable();    //turn off voltage monitoring
+  //## turn off ADC ...
+  // ## switch radio to low-power
+
+  //sei();
+  sleep_mode();   //goes to sleep here
+
+  // [SLEEPING HERE]
+
+  sleep_disable();    //forbid sleep
+}
+
+void enable_interrupts(){ //EDIT
+  cli();
+  // pin change interrupt (example for D4)
+  PCMSK2 |= bit (PCINT21);  // want pin 5
+  PCMSK2 |= bit (PCINT22);  // want pin 6
+  PCIFR  |= bit (PCIF2);    // clear any outstanding interrupts
+  PCICR  |= bit (PCIE2);    // enable pin change interrupts for D0 to D7
+
+  sei();
+}
+
+// ------------------- main ----------------
 
 void setup(){
+  cli();
+
+  // pullup unused pins (consumes less power)
+  for (byte i=0; i<20; i++) {    //make all pins inputs with pullups enabled
+      pinMode(i, INPUT_PULLUP);
+  }
+
   Serial.begin(9600);
-  Serial.println(F("RF_Test starting..."));
+  Serial.println(F("PC_CTRL starting..."));
+
+  pinMode(PIN_BT, INPUT_PULLUP);    // switch pulls down
+  pinMode(PIN_LED, OUTPUT);
+
+  digitalWrite(PIN_LED, false);
 
   SPI.begin();    //start for radio ##needed?
 
@@ -92,41 +132,44 @@ void setup(){
   network.begin(90, this_node);   // no idea where the 90 is from
 
   Serial.println(F("Setup finished."));
+  Serial.flush();
+
+  digitalWrite(PIN_LED, true);
+
+
+  sei();
+  //enable_interrupts(); FIT TO CODE FIRST
 }
 
-bool toggle = 0;
-
-uint32_t last_send = 0;
 uint32_t last_blink = 0;
 uint32_t now;
-uint32_t interval = 4000; //ms
-bool success;
-
-RF24NetworkHeader header(other_node);   //generate header for transmission
+const uint32_t interval = 2000; //ms
 
 void loop(){
   network.update();   //call often to enable network features
 
   now = millis();
 
-  if ( now - last_blink >= 1000){
+  while (network.available()){
+    HomeNet::payload load;
+    RF24NetworkHeader header;
+
+    network.read(header, &load, sizeof(load));
+
+    HomeNet::print_payload(load);
+
+
+    translate(load);
+
+  }
+
+
+/*
+  if ( (now - last_blink) >= interval){
     last_blink = now;
     Serial.println(F("Toggle"));
-    toggle = !toggle;
 
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    digitalWrite(PIN_LED, !digitalRead(PIN_LED));
   }
-
-  if ( now - last_send >= interval){
-    last_send = now;
-    Serial.println(F("Sending Test Command"));
-
-    cmd payload = {this_node, 0, 0, 0};   //test payload
-
-    success = network.write(header, &payload, sizeof(payload));
-    if (success == true) Serial.println("Transmission was successful");
-    else Serial.println("Transmission failed");
-  }
-
-  // transmit (BROADCAST, GENERIC, BLINK, 3)
+*/
 }

@@ -99,8 +99,8 @@ RF24 radio(PIN_CE, PIN_CS);
 
 RF24Network network(radio);
 
-const uint16_t this_node = CMD::NODE::TESTER;    // 01 OCTAL
-const uint16_t other_node = CMD::NODE::PC_NODE;   // 02
+const uint16_t this_node = static_cast<uint16_t>(CMD::NODE::TESTER);    // 01 OCTAL
+const uint16_t other_node = static_cast<uint16_t>(CMD::NODE::PC_NODE);   // 02
 
 // struct cmd   //forward declaration?
 
@@ -112,7 +112,7 @@ volatile cmd_payload payload{(uint16_t) -1,(uint16_t) -1, 0, 0, 0};
 volatile bool toggle = 0;    //volatile because of interrupt modification
 volatile bool changed = 0;    //not needed if payload is modified
 
-const uint16_t t_deb = 500; //ms
+const uint16_t t_deb = 100; //ms
 volatile uint32_t last = 0;
 volatile uint8_t PORTD_HIST = 0xFF;
 /*
@@ -168,7 +168,7 @@ ISR (PCINT2_vect){  //PORTD
   }
   if (changedbits & (1 << PIND6)){
     if (digitalRead(PIN_BT_2) == false){
-      payload = (cmd_payload){this_node, other_node, CMD::GENERIC, CMD::SET_LED, toggle};  //switch other led depending on own status
+      payload = (cmd_payload){this_node, other_node, static_cast<uint8_t>(CMD::CATEGORY::GENERIC), static_cast<uint8_t>(CMD::GENERIC::SET_LED), toggle};  //switch other led depending on own status
     }
   }
 }
@@ -212,8 +212,8 @@ void setup(){
       pinMode(i, INPUT_PULLUP);
   }
 
-  Serial.begin(9600);
-  Serial.println(F("RF_Debug_Board starting..."));
+  //Serial.begin(9600);
+  //Serial.println(F("RF_Debug_Board starting..."));
 
   pinMode(PIN_BT_1, INPUT_PULLUP);    // switch pulls down
   pinMode(PIN_BT_2, INPUT_PULLUP);
@@ -223,7 +223,7 @@ void setup(){
   SPI.begin();    //start for radio ##needed?
 
   if (!radio.begin()){    //failed init, continued use will do weird stuff to network code
-    Serial.println(F("No response from module"));
+    //Serial.println(F("No response from module"));
     //delay(1000);  // wait for... stuff...
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     cli();  //disable interrupts
@@ -236,11 +236,11 @@ void setup(){
 
   network.begin(90, this_node);   // ## no idea where the 90 is from
 
-  enable_interrupts();
-
   // -- done --
 
-  Serial.println(F("Setup finished."));
+  //Serial.println(F("Setup finished."));
+
+  enable_interrupts();
 }
 
 
@@ -248,21 +248,21 @@ void loop(){
   network.update();   //call often to enable network features
 
   if (payload.to_node != (uint16_t)-1) {   //interrupt routine modified; easier than 2^16 - 1
-    Serial.println(F("Payload was modified, transmitting again"));
+    //Serial.println(F("Payload was modified, transmitting again"));
     print_payload(payload);
 
     RF24NetworkHeader header(payload.to_node);
     bool success = network.write(header, &payload, sizeof(payload));
 
-    if (success == true) Serial.println("Transmission was successful");
-    else Serial.println("Transmission failed");
+    //if (success == true) Serial.println("Transmission was successful");
+    //else Serial.println("Transmission failed");
 
     //reset variables
 
     payload.to_node = (uint16_t)-1; //payload is invalid again; easier than 2^16 - 1
 
-    Serial.println(F("Payload was reset"));
-    print_payload(payload);
+    //Serial.println(F("Payload was reset"));
+    //print_payload(payload);
   }
   // transmit (BROADCAST, GENERIC, BLINK, 3)
 }

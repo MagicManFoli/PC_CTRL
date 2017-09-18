@@ -1,0 +1,27 @@
+ -- edit in config-h for radio --
+//payload-size in byte
+#define MAX_PAYLOAD_SIZE 16
+#define DISABLE_FRAGMENTATION
+#define RF24NetworkMulticast
+#define ENABLE_SLEEP_MODE
+
+
+ -- Network --
+
+  Each Node can only connect to 6 other Nodes, tree structure needed
+  -> 6 children for root, after that 1 parent and 5 children
+
+  https://tmrh20.github.io/RF24Network/helloworld_tx_8ino-example.html
+  https://tmrh20.github.io/RF24Network/helloworld_rx_8ino-example.html
+
+  In RF24Network, the master is just 00
+  Children of master are 01,02,03,04,05
+  Children of 01 are 011,021,031,041,051
+
+  multicastLevel
+  setup_watchdog  -> max 8s
+  sleepNode
+  is_valid_address
+  multicastRelay  -> enable forwarding
+  available
+  read/peek
