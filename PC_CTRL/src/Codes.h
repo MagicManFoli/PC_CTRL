@@ -34,38 +34,69 @@ Node  | Category  | Funktion  | Parameter
 // current payload: 40 Bit, 5 Bytes
 
 // structured block to group cmd's together
-struct cmd {    //const?
-  uint16_t from_node;    //added for answer (apart from ACK)
-  //uint8_t to_node;    //already needed for transmission
+struct cmd_payload {    //## const?,  include into CMD?
+  uint16_t from_node;    //added for answer (apart from ACK), octal format
+  uint16_t to_node;    //already defined in header for transmission but redefine here ## volatile problem
   uint8_t category;
   uint8_t function;
   uint8_t parameter;
 };
 
+
 // enum class to use namespace, prevents duplicates
+class CMD{    // ### still not perfect, crash on duplicates
+private:
+  // nothing needed, just container for commands
+public:
+  // define your module address here, octal!!
+  enum NODE : uint16_t {  // receiver only analyses BROADCAST or own name
+    BROADCAST = START,  //enables the use of global functions like network reboot
+    PC_NODE = 02,
+    TESTER = 00,
+    RS,     //radio socket
+    TV,
+    RGB
+  };
 
-enum class NODE{  // receiver only analyses BROADCAST or own name
-  BROADCAST = START,  //enables the use of global functions like network reboot
-  PC_NODE,
-  RS,     //radio socket
-  TV,
-  RGB
+  // ### not DRY, names of enmus below
+  enum CATEGORY : uint8_t {
+    GENERIC = START,  // receiver sends package with state ()
+    PC_CTRL   //with ON or OFF
+  };
+
+  // ----------- Category with Functions:
+
+  enum GENERIC{
+    GET_STATUS = START,     //return what you want
+    GET_CHARGE,             //return current carge of battery
+    SET_TIME,               //with ON or OFF
+    RESTART,
+    SET_LED,                // 1 or 0
+    BLINK                   // x times
+  };
+
+  enum PC_CTRL{
+    GET = START,  // receiver sends package with state ()
+    SET   //with ON or OFF
+  };
+
+  // ### error with duplicates, scoped scoped enum?
+  /*enum RGB{
+    GET = START,  // receiver sends package with state ()
+    SET   //with ON or OFF
+  };*/
+
+
 };
 
-// ----------- Category with Functions:
 
-enum class GENERIC{
-  GET_STATUS = START,     //return what you want
-  GET_CHARGE,             //return current carge of battery
-  SET_TIME,               //with ON or OFF
-  RESTART,
-  BLINK                   // x times
-};
 
-enum class PC_CTRL{
-  GET = START,  // receiver sends package with state ()
-  SET   //with ON or OFF
-};
+
+
+
+
+
+
 
 
 

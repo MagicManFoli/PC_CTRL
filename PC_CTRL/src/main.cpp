@@ -24,6 +24,13 @@
 // Setup for RF24 Codes
 const uint8_t PIN_CE = 7;
 const uint8_t PIN_CS = 8;
+
+// blink when transmission was received
+const uint8_t PIN_LED = A3;
+
+// test battery/start PC (?)
+const uint8_t PIN_MANUAL = 3;
+
 /* SETUP
 NRF --> Arduino
 ---------------
@@ -37,30 +44,9 @@ MISO -> 12
 IRQ -> ??
 */
 
-/* http://forum.arduino.cc/index.php?topic=421081
-  2.4Ghz, default: Channel 76
-  pipes determine receiver channel
-  pipe 0 always sending, pipe 1-5 allow parallel receiving
+/* -- Network --
 
-  radio interference possible, but unlikely and controlled by Library
-  default: 5 tries to send, up to 15x possible
-
-  radio.available() already has complete messages, no need to wait
-
-  two_way possible, but difficult
-  ackPayload eases operation and handling, but only allows up to 32 bytes in parallel
-  ackPayLoad causes slave to always be one message behind master
-
-  possible additions:
-  http://tmrh20.github.io/RF24Mesh/
-  http://tmrh20.github.io/RF24Network/
-
-  255 Connections could be possible, but difficult
-  https://www.insidegadgets.com/2013/06/09/nrf24-multi-network-allowing-for-255-addresses/
-
-  -- Network --
-
-  Each Node can only connect to 6 other Nodes, tree struucture needed
+  Each Node can only connect to 6 other Nodes, tree structure needed
   -> 6 children for root, after that 1 parent and 5 children
 
   https://tmrh20.github.io/RF24Network/helloworld_tx_8ino-example.html
@@ -82,7 +68,6 @@ IRQ -> ??
 
 // SPI +
 RF24 radio(PIN_CE, PIN_CS);
-
 RF24Network network(radio);
 
 const uint16_t this_node = 01;    //first child, this node

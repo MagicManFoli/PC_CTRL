@@ -99,8 +99,8 @@ RF24 radio(PIN_CE, PIN_CS);
 
 RF24Network network(radio);
 
-const uint16_t this_node = CMD::TESTER;    // 01 OCTAL
-const uint16_t other_node = CMD::PC_NODE;   // 02
+const uint16_t this_node = CMD::NODE::TESTER;    // 01 OCTAL
+const uint16_t other_node = CMD::NODE::PC_NODE;   // 02
 
 // struct cmd   //forward declaration?
 
@@ -112,8 +112,8 @@ volatile cmd_payload payload{(uint16_t) -1,(uint16_t) -1, 0, 0, 0};
 volatile bool toggle = 0;    //volatile because of interrupt modification
 volatile bool changed = 0;    //not needed if payload is modified
 
-const uint16_t t_deb = 50; //ms
-volatile uint32_t last;
+const uint16_t t_deb = 500; //ms
+volatile uint32_t last = 0;
 volatile uint8_t PORTD_HIST = 0xFF;
 /*
 // ## toggle on interrupt by PIN_BT_1
@@ -156,13 +156,15 @@ ISR (PCINT2_vect){  //PORTD
     last = now;
     return;
   }
+  //first execution is always right
+  last = now;
 
   if (changedbits & (1 << PIND5)){  //pin is changed pin
     if (digitalRead(PIN_BT_1) == false){
       changed = true;
       toggle = !toggle;
       digitalWrite(PIN_LED_1, toggle);
-    }
+    } //else button release, should be ignored
   }
   if (changedbits & (1 << PIND6)){
     if (digitalRead(PIN_BT_2) == false){
@@ -172,9 +174,9 @@ ISR (PCINT2_vect){  //PORTD
 }
 
 void sleep(){
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // stand by possible for fast responses
+  // Serial -> going to sleep
 
-  // ...
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // stand by possible for fast responses
 
   sleep_enable();
   sleep_bod_disable();
@@ -182,10 +184,12 @@ void sleep(){
   //sei();
   sleep_mode();   //goes to sleep here
 
+  // [SLEEPING HERE]
+
   sleep_disable();    //wakes up here
 }
 
-void print_payload(volatile cmd_payload &pl){ //it works, dont ask
+void print_payload(volatile cmd_payload &pl){
     Serial.println(F("-- Payload is: --"));
     Serial.print(F("\n From Node: "));
     Serial.print(pl.from_node);
@@ -228,8 +232,9 @@ void setup(){
   }
 
   //## modify radio if possible
+  // lower power & range
 
-  network.begin(90, this_node);   // no idea where the 90 is from
+  network.begin(90, this_node);   // ## no idea where the 90 is from
 
   enable_interrupts();
 

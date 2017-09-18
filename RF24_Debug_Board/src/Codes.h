@@ -52,7 +52,7 @@ public:
   enum NODE : uint16_t {  // receiver only analyses BROADCAST or own name
     BROADCAST = START,  //enables the use of global functions like network reboot
     PC_NODE = 02,
-    TESTER = 01,
+    TESTER = 00,
     RS,     //radio socket
     TV,
     RGB
