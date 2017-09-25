@@ -6,7 +6,7 @@
 #include <avr/sleep.h>
 #include <avr/io.h>
 
-#include "Codes.h"
+#include "HomeNet.h"
 
 //LowPower.h     //.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
 
@@ -99,12 +99,11 @@ RF24 radio(PIN_CE, PIN_CS);
 
 RF24Network network(radio);
 
-const uint16_t this_node = static_cast<uint16_t>(CMD::NODE::TESTER);    // 01 OCTAL
-const uint16_t other_node = static_cast<uint16_t>(CMD::NODE::PC_NODE);   // 02
+const uint16_t this_node = static_cast<uint16_t>(HomeNet::NODE::TESTER);    // 01 OCTAL
+const uint16_t other_node = static_cast<uint16_t>(HomeNet::NODE::PC_NODE);   // 02
 
-// struct cmd   //forward declaration?
-
-volatile cmd_payload payload{(uint16_t) -1,(uint16_t) -1, 0, 0, 0};
+// ommited volatile because of compiler problems
+HomeNet::payload payload{(uint16_t) -1,(uint16_t) -1, 0, 0, 0};
 //volatile RF24NetworkHeader header;
 
 /* -----------  Functions ------------------- */
@@ -163,12 +162,12 @@ ISR (PCINT2_vect){  //PORTD
     if (digitalRead(PIN_BT_1) == false){
       changed = true;
       toggle = !toggle;
-      digitalWrite(PIN_LED_1, toggle);
+      digitalWrite(PIN_LED_1, !toggle);
     } //else button release, should be ignored
   }
   if (changedbits & (1 << PIND6)){
     if (digitalRead(PIN_BT_2) == false){
-      payload = (cmd_payload){this_node, other_node, static_cast<uint8_t>(CMD::CATEGORY::GENERIC), static_cast<uint8_t>(CMD::GENERIC::SET_LED), toggle};  //switch other led depending on own status
+      payload = (HomeNet::payload){this_node, other_node, static_cast<uint8_t>(HomeNet::CATEGORY::GENERIC), static_cast<uint8_t>(HomeNet::GENERIC::SET_LED), toggle};  //switch other led depending on own status
     }
   }
 }
@@ -189,21 +188,6 @@ void sleep(){
   sleep_disable();    //wakes up here
 }
 
-void print_payload(volatile cmd_payload &pl){
-    Serial.println(F("-- Payload is: --"));
-    Serial.print(F("\n From Node: "));
-    Serial.print(pl.from_node);
-    Serial.print(F("\n To Node: "));
-    Serial.print(pl.to_node);
-    Serial.print(F("\n category: "));
-    Serial.print(pl.category);
-    Serial.print(F("\n function: "));
-    Serial.print(pl.function);
-    Serial.print(F("\n parameter: "));
-    Serial.print(pl.parameter);
-    Serial.println(F("\n-----------------"));
-}
-
 void setup(){
   noInterrupts();
 
@@ -212,8 +196,8 @@ void setup(){
       pinMode(i, INPUT_PULLUP);
   }
 
-  //Serial.begin(9600);
-  //Serial.println(F("RF_Debug_Board starting..."));
+  Serial.begin(9600);
+  Serial.println(F("RF_Debug_Board starting..."));
 
   pinMode(PIN_BT_1, INPUT_PULLUP);    // switch pulls down
   pinMode(PIN_BT_2, INPUT_PULLUP);
@@ -223,7 +207,7 @@ void setup(){
   SPI.begin();    //start for radio ##needed?
 
   if (!radio.begin()){    //failed init, continued use will do weird stuff to network code
-    //Serial.println(F("No response from module"));
+    Serial.println(F("No response from module"));
     //delay(1000);  // wait for... stuff...
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     cli();  //disable interrupts
@@ -238,7 +222,7 @@ void setup(){
 
   // -- done --
 
-  //Serial.println(F("Setup finished."));
+  Serial.println(F("Setup finished."));
 
   enable_interrupts();
 }
@@ -249,14 +233,18 @@ void loop(){
 
   if (payload.to_node != (uint16_t)-1) {   //interrupt routine modified; easier than 2^16 - 1
     //Serial.println(F("Payload was modified, transmitting again"));
-    print_payload(payload);
+    HomeNet::print_payload(payload);
 
     RF24NetworkHeader header(payload.to_node);
     bool success = network.write(header, &payload, sizeof(payload));
 
-    //if (success == true) Serial.println("Transmission was successful");
-    //else Serial.println("Transmission failed");
-
+    if (success == true){
+      digitalWrite(PIN_LED_2, true);
+    }
+    else {
+      //Serial.println("Transmission failed");
+      digitalWrite(PIN_LED_2, false);
+    }
     //reset variables
 
     payload.to_node = (uint16_t)-1; //payload is invalid again; easier than 2^16 - 1

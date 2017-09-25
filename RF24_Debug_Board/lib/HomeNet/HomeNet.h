@@ -44,9 +44,9 @@ private:
 public:
   // current payload: 40 Bit, 5 Bytes
   // structured block to group cmd's together
-  struct payload {
+  struct payload {    //## const?,  include into CMD?
     uint16_t from_node;    //added for answer (apart from ACK), octal format
-    uint16_t to_node;    //already defined in header for transmission, optional
+    uint16_t to_node;    //already defined in header for transmission but redefine here ## volatile problem
     uint8_t category;
     uint8_t function;
     uint8_t parameter;
@@ -93,6 +93,27 @@ public:
     SET   //with duration, 1 -> 100ms, 255 -> 25s
   };
 
+  // ### error with duplicates, scoped scoped enum?
+  /*enum RGB{
+    GET = START,  // receiver sends package with state ()
+    SET   //with ON or OFF
+  };*/
+
+
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif /* end of include guard:  */

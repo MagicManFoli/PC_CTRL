@@ -23,5 +23,4 @@
   sleepNode
   is_valid_address
   multicastRelay  -> enable forwarding
-  available
   read/peek

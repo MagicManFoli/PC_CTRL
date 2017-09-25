@@ -11,6 +11,12 @@
 #include <RF24.h>
 #include <SPI.h>
 
+/** TODO
+- LED not always responding to received payload
+- manual activation via button triggers on both flanks, should be one
+
+**/
+
 // -------- globals & startup -------------------
 
 /* SETUP
@@ -23,7 +29,7 @@ CS -> 8
 SCK -> 13
 MOSI -> 11
 MISO -> 12
-IRQ -> ??
+IRQ -> 2
 */
 
 // Setup for RF24 Codes
@@ -31,11 +37,12 @@ const uint8_t PIN_CE = 7;
 const uint8_t PIN_CS = 8;
 
 // test battery/start PC (?)
-const uint8_t PIN_BT = 3;
+const uint8_t PIN_IRQ = 2;
+const uint8_t PIN_BT = 3;   //inverted
 
 // blink when transmission was received
-const uint8_t PIN_LED = A4;
-const uint8_t PIN_PC = A5;
+const uint8_t PIN_LED = A4; //inverted
+const uint8_t PIN_PC = A5;  //inverted
 
 
 // SPI +
@@ -46,34 +53,38 @@ const uint16_t this_node = static_cast<uint16_t>(HomeNet::NODE::PC_NODE);    //f
 const uint16_t main_node = static_cast<uint16_t>(HomeNet::NODE::TESTER);    //master Node
 
 //volatile cmd_payload payload{(uint16_t) -1,(uint16_t) -1, 0, 0, 0};
+HomeNet home;
 
+const uint16_t sleep_delay = 30000; //10 s
+
+uint32_t next_reset = 0;
+uint32_t last_action = 0;
 
 // ---------------- functions --------------
 
-void translate(HomeNet::payload load){
-  if (load.category == static_cast<uint8_t>(HomeNet::CATEGORY::GENERIC)){
-    if (load.function == static_cast<uint8_t>(HomeNet::GENERIC::SET_LED)){
-      Serial.println(F("Writing new LED status"));
-      digitalWrite(PIN_LED, (bool)load.parameter);
-      return;
-    }
-  }
+void PC_CTRL_SET(uint8_t duration){
+  digitalWrite(PIN_LED, false);
+  digitalWrite(PIN_PC, false);
 
-  if (load.category == static_cast<uint8_t>(HomeNet::CATEGORY::PC_CTRL)){
-    if (load.function == static_cast<uint8_t>(HomeNet::PC_CTRL::SET)){
-      Serial.println(F("Writing new CTRL status"));
-      digitalWrite(PIN_PC, (bool)load.parameter);
-      return;
-    }
-  }
+  next_reset = millis() + (duration*100);
+
+  // ... wait for reset
 }
 
-// ISR to wake up from NRF
-// ...
+void PC_CTRL_RESET(){
+  // .. after set
+
+  next_reset = 0;
+
+  digitalWrite(PIN_PC, true);
+  digitalWrite(PIN_LED, true);
+}
+
+void SET_LED(uint8_t status){
+  digitalWrite(PIN_LED, !status);
+}
 
 void sleep(){
-  // Serial -> going to sleep
-
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // stand by possible for fast responses
 
   sleep_enable();         // allow power-down
@@ -81,7 +92,7 @@ void sleep(){
   //## turn off ADC ...
   // ## switch radio to low-power
 
-  //sei();
+  sei();
   sleep_mode();   //goes to sleep here
 
   // [SLEEPING HERE]
@@ -90,14 +101,25 @@ void sleep(){
 }
 
 void enable_interrupts(){ //EDIT
-  cli();
-  // pin change interrupt (example for D4)
-  PCMSK2 |= bit (PCINT21);  // want pin 5
-  PCMSK2 |= bit (PCINT22);  // want pin 6
-  PCIFR  |= bit (PCIF2);    // clear any outstanding interrupts
-  PCICR  |= bit (PCIE2);    // enable pin change interrupts for D0 to D7
+  //cli();
+  //PCMSK2 |= bit (PCINT18);  // want pin 2, IRQ
+  //PCMSK2 |= bit (PCINT19);  // want pin 3, BT
+
+  EICRA |= bit (ISC11) | bit (ISC01);  // falling edge  ### seems to trigger on both
+  EIMSK |= bit (INT0) | bit(INT1);
 
   sei();
+}
+
+// ISR to wake up from NRF
+// ...
+
+ISR(INT0_vect){
+  // woke up from sleep, nothing to do
+}
+
+ISR(INT1_vect){
+  PC_CTRL_SET(10);
 }
 
 // ------------------- main ----------------
@@ -114,9 +136,13 @@ void setup(){
   Serial.println(F("PC_CTRL starting..."));
 
   pinMode(PIN_BT, INPUT_PULLUP);    // switch pulls down
-  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_IRQ, INPUT_PULLUP);    // interrupt from NRF
 
-  digitalWrite(PIN_LED, false);
+  pinMode(PIN_LED, OUTPUT);
+  pinMode(PIN_PC, OUTPUT);
+
+  digitalWrite(PIN_LED, false);   // set to on
+  digitalWrite(PIN_PC, true);    // set to off
 
   SPI.begin();    //start for radio ##needed?
 
@@ -128,6 +154,19 @@ void setup(){
     Serial.flush();
     sleep_mode();
   }
+
+  // ## SETUP radio
+  // low power
+  // IRQ only on received
+
+
+  // add entries for dictionary
+  home.add(static_cast<uint8_t>(HomeNet::CATEGORY::GENERIC),
+    static_cast<uint8_t>(HomeNet::GENERIC::SET_LED), SET_LED);
+  home.add(static_cast<uint8_t>(HomeNet::CATEGORY::PC_CTRL),
+    static_cast<uint8_t>(HomeNet::PC_CTRL::SET), PC_CTRL_SET);
+
+
   //-- network --
   network.begin(90, this_node);   // no idea where the 90 is from
 
@@ -136,21 +175,18 @@ void setup(){
 
   digitalWrite(PIN_LED, true);
 
-
-  sei();
-  //enable_interrupts(); FIT TO CODE FIRST
+  enable_interrupts();
 }
 
-uint32_t last_blink = 0;
-uint32_t now;
-const uint32_t interval = 2000; //ms
-
 void loop(){
+
+  uint32_t now = millis();
+
+  // network handling
   network.update();   //call often to enable network features
 
-  now = millis();
-
   while (network.available()){
+    Serial.println(F("Message available"));
     HomeNet::payload load;
     RF24NetworkHeader header;
 
@@ -158,18 +194,29 @@ void loop(){
 
     HomeNet::print_payload(load);
 
-
-    translate(load);
-
+    home.translate(load);
+    last_action = now;
   }
 
-
-/*
-  if ( (now - last_blink) >= interval){
-    last_blink = now;
-    Serial.println(F("Toggle"));
-
-    digitalWrite(PIN_LED, !digitalRead(PIN_LED));
+  // RESET logic for PC_CTRL
+  if ( next_reset != 0 && now >= next_reset){
+    Serial.println(F("reset PC_CTRL"));
+    PC_CTRL_RESET();
+    last_action = now;
   }
-*/
+
+  //sleep logic
+
+  if ((last_action + sleep_delay) <= now){
+    Serial.println(F("Going to sleep"));
+    Serial.flush();
+
+    sleep();
+
+    // [SLEEPING]
+
+    Serial.println(F("Woke up"));
+    last_action = now;
+  }
+
 }
